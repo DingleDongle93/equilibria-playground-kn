@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Equilibria Engine Playground</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%232563eb' d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%232563eb' d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/></svg>">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -387,6 +388,7 @@
                 <option value="tax-incidence">Tax Incidence</option>
                 <option value="consumer-choice">Consumer Choice</option>
                 <option value="grid-4">Multi-Chart Grid</option>
+                <option value="da-vinci">Da Vinci Paintings</option>
             </select>
         </div>
         <div>
@@ -400,7 +402,7 @@
     <!-- APP LOGIC -->
     <script>
         // --- Disable localStorage for CDN libraries to avoid tracking prevention errors ---
-        (function() {
+        (function () {
             try {
                 const testKey = '__storage_test__';
                 localStorage.setItem(testKey, testKey);
@@ -409,10 +411,10 @@
                 // If localStorage is blocked, stub it out to prevent errors
                 console.warn('localStorage blocked - using memory fallback');
                 const memoryStorage = {};
-                Storage.prototype.setItem = function(key, value) { memoryStorage[key] = value; };
-                Storage.prototype.getItem = function(key) { return memoryStorage[key] || null; };
-                Storage.prototype.removeItem = function(key) { delete memoryStorage[key]; };
-                Storage.prototype.clear = function() { Object.keys(memoryStorage).forEach(k => delete memoryStorage[k]); };
+                Storage.prototype.setItem = function (key, value) { memoryStorage[key] = value; };
+                Storage.prototype.getItem = function (key) { return memoryStorage[key] || null; };
+                Storage.prototype.removeItem = function (key) { delete memoryStorage[key]; };
+                Storage.prototype.clear = function () { Object.keys(memoryStorage).forEach(k => delete memoryStorage[k]); };
             }
         })();
 
@@ -536,7 +538,112 @@ charts:
     title: "Chart 4"
     xAxis: { min: 0, max: 100 }
     yAxis: { min: 0, max: 100 }
-    elements: [{id: p1, type: point, x: val, y: val, color: "purple"}]`
+    elements: [{id: p1, type: point, x: val, y: val, color: "purple"}]`,
+
+            'da-vinci': `metadata:
+  title: "The Market for Da Vinci Paintings"
+  specVersion: "1.0"
+  description: "Inelastic supply of rare paintings. Functionality to demonstrate shortages and surpluses via price controls."
+parameters:
+  demandShift:
+    value: 0
+    min: -200
+    max: 200
+    step: 5
+    label: "Demand Shift"
+  priceControl:
+    value: 250
+    min: 0
+    max: 500
+    step: 5
+    label: "Price Control ($M)"
+
+  # Intermediate calculations
+  intercept:
+    value: 450
+    expression: "450 + demandShift"
+    hidden: true
+  Qd:
+    value: 15
+    expression: "(intercept - priceControl) / 13.33"
+    hidden: true
+  Qs:
+    value: 15
+    hidden: true
+  
+  # Imbalance logic for annotation positioning
+  # If Qd > 15 (Shortage), pos = (15 + Qd)/2. If Surplus (Qd < 15), offscreen (-100).
+  shortageX:
+    value: -100
+    expression: "Qd > 15 ? (15 + Qd)/2 : -100"
+    hidden: true
+  surplusX:
+    value: -100
+    expression: "Qd < 15 ? (15 + Qd)/2 : -100"
+    hidden: true
+
+charts:
+  - id: main
+    title: "Market for Da Vinci Paintings"
+    xAxis:
+      label: "Quantity"
+      min: 0
+      max: 30
+    yAxis:
+      label: "Price ($M)"
+      min: 0
+      max: 500
+    elements:
+      - id: supply
+        type: verticalLine
+        x: 15
+        color: "#f59e0b"
+        label: "Supply"
+        strokeWidth: 3
+        
+      - id: demand
+        type: line
+        equation: "intercept - 13.33 * x"
+        color: "#3b82f6"
+        label: "Demand"
+        strokeWidth: 3
+        
+      - id: priceLine
+        type: horizontalLine
+        y: "priceControl"
+        color: "#22c55e"
+        strokeDasharray: "4 4"
+        label: "Price Control"
+        
+      - id: eqPoint
+        type: point
+        x: 15
+        y: "intercept - 13.33 * 15"
+        color: "#e8eaed"
+        label: "Equilibrium"
+        
+      # Dynamic points to show Qd on the price line
+      - id: demandPoint
+        type: point
+        x: "Qd"
+        y: "priceControl"
+        color: "#3b82f6"
+        radius: 4
+        
+    annotations:
+      - id: shortageLabel
+        text: "Shortage"
+        x: "shortageX"
+        y: "priceControl - 20"
+        color: "#ef4444"
+        visible: true
+        
+      - id: surplusLabel
+        text: "Surplus"
+        x: "surplusX"
+        y: "priceControl - 20"
+        color: "#3b82f6"
+        visible: true`
         };
 
         // --- State ---
@@ -550,7 +657,7 @@ charts:
 
         require(['vs/editor/editor.main'], function () {
             editor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: EXAMPLES['supply-demand'],
+                value: EXAMPLES['da-vinci'],
                 language: 'yaml',
                 theme: 'vs-light',
                 automaticLayout: true,
